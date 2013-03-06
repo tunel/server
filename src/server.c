@@ -380,6 +380,8 @@ Server_tlp_query_octree (NetServer *serv, NetClient *client, void *udata,
     SCE_SVoxelOctree *vo = NULL;
     Server *ss = NetServer_GetData (serv);
 
+    /* TODO: sha1? we'll see when the trees get really big. */
+
     if (size != 4 * 3) {
         SCEE_SendMsg ("corrupted query_octree packet: %ld\n", size);
         return;
@@ -436,7 +438,7 @@ Server_tlp_query_chunk (NetServer *serv, NetClient *client, void *udata,
     Server *ss = NetServer_GetData (serv);
 
 #define PACKET_SIZE 16
-#define PACKET_SIZE_CHKSUM (PACKET_SIZE + sizeof (SCE_TSha1))
+#define PACKET_SIZE_CHKSUM (PACKET_SIZE + SCE_SHA1_SIZE)
 
     if (size != PACKET_SIZE && size != PACKET_SIZE_CHKSUM) {
         SCEE_SendMsg ("corrupted query_chunk packet\n");
