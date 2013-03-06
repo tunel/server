@@ -43,6 +43,8 @@ static void Server_InitClient (ServerClient *sc)
 }
 static void Server_ClearClient (ServerClient *sc)
 {
+    if (sc->client)
+        NetClient_SetFreeDataFunc (sc->client, NULL);
     SCE_List_Remove (&sc->it1);
 }
 static ServerClient* Server_NewClient (void)
@@ -104,12 +106,19 @@ static int Server_GenerateID (Server *ss)
     return ss->id_generator;
 }
 
+static void Server_FreeClientCallback (NetClient *client, void *udata)
+{
+    ServerClient *sc = udata;
+    Server_FreeClient (sc);
+}
+
 static ServerClient* Server_AddNewClient (Server *ss, NetClient *client)
 {
     ServerClient *sc = NULL;
     if (!(sc = Server_NewClient ())) return NULL;
     sc->client = client;
     NetClient_SetData (client, sc);
+    NetClient_SetFreeDataFunc (client, Server_FreeClientCallback);
     SCE_List_Appendl (&ss->clients, &sc->it1);
     sc->id = Server_GenerateID (ss);
     return sc;
@@ -204,6 +213,7 @@ Server_tlp_disconnect (NetServer *serv, NetClient *client, void *udata,
     char data[8] = {0};
     Server_ANTIFAGS()
     Socket_SetID (data, sc->id);
+    SCEE_SendMsg ("%s disconnected\n", sc->nick);
     Server_RemoveClient (ss, sc);
     Server_FreeClient (sc);
     /* dont send it if the client was only chatting */
