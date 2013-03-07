@@ -24,11 +24,13 @@
 #include <SCE/core/SCECore.h>
 
 #include <tunel/common/netserver.h>
+#include <tunel/common/terrainbrush.h>
 
 #define SERVER_DEFAULT_PORT 13337
 #define SERVER_MAX_TERRAIN_PATH_LENGTH 256
 
-//typedef struct ???
+#define SERVER_NUM_BRUSHES 1
+#define SERVER_MAX_BRUSH_SIZE 10
 
 typedef struct server Server;
 struct server {
@@ -44,6 +46,11 @@ struct server {
     SCE_SFileCache fcache;
     SCE_SFileSystem fsys;
     SCE_SVoxelWorld *vw;        /* terrain */
+    TerrainBrush brushes[SERVER_NUM_BRUSHES];
+#define SERVER_BLBL (SERVER_MAX_BRUSH_SIZE + 2)
+    SCEubyte buffer[SERVER_BLBL * SERVER_BLBL * SERVER_BLBL];
+    SCEubyte *dyn_buffer;
+    size_t dyn_size;
 };
 
 int Init_Server (void);

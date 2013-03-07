@@ -22,6 +22,7 @@
 
 #include <tunel/common/netprotocol.h>
 #include <tunel/common/netserver.h>
+#include <tunel/common/terrainbrush.h>
 #include "perlin.h"
 #include "server.h"
 
@@ -65,6 +66,12 @@ static void Server_FreeClient (ServerClient *sc)
     }
 }
 
+static TerrainBrush* Server_LocateTerrainBrush (Server *ss, SCEuint id)
+{
+    if (id < SERVER_NUM_BRUSHES)
+        return &ss->brushes[id];
+    return NULL;
+}
 
 #define Server_SENDFUNC(who, how, list)                                 \
     static void Server_Send##how##To##who (Server *ss, ServerClient *ex, int id, \
@@ -519,6 +526,67 @@ Server_tlp_query_chunk (NetServer *serv, NetClient *client, void *udata,
     (void)udata;
 }
 
+static void
+Server_tlp_edit_terrain (NetServer *serv, NetClient *client, void *udata,
+                         const char *packet, size_t size)
+{
+    long x, y, z, brush_id, dim;
+    TerrainBrush *tb = NULL;
+    unsigned int brush_size;
+    TerrainBrushMode brush_mode;
+    SCE_TVector3 pos;
+    SCE_SLongRect3 rect;
+    Server *ss = NetServer_GetData (serv);
+
+    if (size != 24) {
+        SCEE_SendMsg ("TLP_EDIT_TERRAIN: packet corrupted: invalid size\n");
+        return;
+    }
+
+    x = SCE_Decode_Long (packet);
+    y = SCE_Decode_Long (&packet[4]);
+    z = SCE_Decode_Long (&packet[8]);
+    /* TODO: floating point precision needed dude, add floating point offset */
+    brush_id = SCE_Decode_Long (&packet[12]);
+    brush_size = SCE_Decode_Long (&packet[16]);
+    brush_mode = SCE_Decode_Long (&packet[20]);
+    /* +1 because +2 below. */
+    SCE_Vector3_Set (pos, (float)(brush_size + 1), (float)(brush_size + 1),
+                     (float)(brush_size + 1));
+
+    if (!(tb = Server_LocateTerrainBrush (ss, brush_id))) {
+        SCEE_SendMsg ("TLP_EDIT_TERRAIN: packet corrupted: unknown brush\n");
+        return;
+    }
+
+    /* do not let little user tricks us */
+    if (brush_size < 0 || brush_size > 10) {
+        SCEE_SendMsg ("inappropriate brush size, out of bounds: %d\n",
+                      brush_size);
+        return;
+    }
+
+    /* we could also check the mode but whatever. */
+
+    /* TODO: queue tb into... something you know, like a queue, and apply them
+       all at once */
+    TBrush_SetSize (tb, brush_size);
+    TBrush_SetMode (tb, brush_mode);
+
+    /* brush size is most likely... let's say the radius. */
+    /* *2 cuz radius, +2 for shits (and because +1 above). */
+    dim = 2 * (brush_size + 2);
+    SCE_Rectangle3_SetFromCenterl (&rect, x, y, z, dim, dim, dim);
+
+    /* oh sweet I happen to have a nice buffer waiting for me in 'ss', I bet
+       it is large enough. */
+    SCE_VWorld_GetRegion (ss->vw, 0, &rect, ss->buffer);
+    TBrush_Apply (tb, pos, dim, dim, dim, ss->buffer);
+    SCE_VWorld_SetRegion (ss->vw, &rect, ss->buffer);
+    if (SCE_VWorld_GenerateAllLOD (ss->vw, 0, &rect) < 0)
+        SCEE_LogSrc ();
+}
+
 
 static NetServerCmd ss_tcpcmds[TLP_NUM_COMMANDS];
 static size_t ss_numtcp = 0;
@@ -544,6 +612,7 @@ static void Server_InitAllCommands (void)
     Server_SETTCPCMD (TLP_UNREGISTER_REGION, Server_tlp_unregister_region);
     Server_SETTCPCMD (TLP_QUERY_OCTREE, Server_tlp_query_octree);
     Server_SETTCPCMD (TLP_QUERY_CHUNK, Server_tlp_query_chunk);
+    Server_SETTCPCMD (TLP_EDIT_TERRAIN, Server_tlp_edit_terrain);
 #if 0
     Server_SETTCPCMD (TLP_GET_CLIENT_NUM, Server_tlp_get_client_num);
     Server_SETTCPCMD (TLP_GET_CLIENT_LIST, Server_tlp_get_client_list);
@@ -584,6 +653,8 @@ static void Server_AssignCallbacks (NetServer *serv)
 
 void Server_Init (Server *ss)
 {
+    size_t i;
+
     ss->port = SERVER_DEFAULT_PORT;
     NetServer_Init (&ss->server);
     NetServer_SetData (&ss->server, ss);
@@ -596,9 +667,19 @@ void Server_Init (Server *ss)
     memset (ss->terrain_path, 0, sizeof ss->terrain_path);
     SCE_FileCache_InitCache (&ss->fcache);
     ss->vw = NULL;
+    for (i = 0; i < SERVER_NUM_BRUSHES; i++)
+        TBrush_Init (&ss->brushes[i]);
+
+    /* setup brushes */
+    TBrush_SetData (&ss->brushes[0], TBrush_SphereData);
+    TBrush_SetFunc (&ss->brushes[0], TBrush_SphereFunc);
+
+    ss->dyn_buffer = NULL;
+    ss->dyn_size = 0;
 }
 void Server_Clear (Server *ss)
 {
+    SCE_free (ss->dyn_buffer);
     SCE_List_Clear (&ss->clients);
     SCE_FileCache_ClearCache (&ss->fcache);
     SCE_VWorld_Delete (ss->vw);
@@ -787,6 +868,9 @@ static int Server_InitTerrain (Server *ss)
             long s = OCTREE_SIZE  << (levels - 1);
             SCE_Rectangle3_Setl (&rect, 0, 0, 0, s, s, s);
             SCE_VWorld_GenerateAllLOD (vw, 0, &rect);
+            /* flush update regions */
+            /* TODO: put that in a function ffs */
+            while (SCE_VWorld_GetNextUpdatedRegion (vw, &rect) >= 0);
         }
         printf ("LOD generated.\n");
     }
@@ -805,6 +889,50 @@ static int Server_UpdateTerrain (Server *ss)
     }
     SCE_FileCache_Update (&ss->fcache);
     return SCE_OK;
+}
+
+static int Server_SendUpdatedRegions (Server *ss)
+{
+    int level = 0;
+    SCE_SLongRect3 rect;
+    unsigned char buf[24] = {0};
+    long x, y, z, w, h, d, size;
+
+    while ((level = SCE_VWorld_GetNextUpdatedRegion (ss->vw, &rect)) >= 0) {
+        SCE_Rectangle3_GetOriginlv (&rect, &x, &y, &z);
+        w = SCE_Rectangle3_GetWidthl (&rect);
+        h = SCE_Rectangle3_GetHeightl (&rect);
+        d = SCE_Rectangle3_GetDepthl (&rect);
+
+        SCE_Encode_Long (x, buf);
+        SCE_Encode_Long (y, &buf[4]);
+        SCE_Encode_Long (z, &buf[8]);
+        SCE_Encode_Long (w, &buf[12]);
+        SCE_Encode_Long (h, &buf[16]);
+        SCE_Encode_Long (d, &buf[20]);
+
+        size = SCE_Rectangle3_GetAreal (&rect);
+        /* NOTE: make a function for this. */
+        if (size > ss->dyn_size) {
+            SCE_free (ss->dyn_buffer);
+            if (!(ss->dyn_buffer = SCE_malloc (size)))
+                goto fail;
+            ss->dyn_size = size;
+        }
+
+        if (SCE_VWorld_GetRegion (ss->vw, level, &rect, ss->dyn_buffer) < 0)
+            goto fail;
+
+        Server_StreamTCPToClients (ss, NULL, TLP_EDIT_TERRAIN,
+                                   buf, 24, size + 24);
+        Server_StreamTCPToClients (ss, NULL, NETWORK_CONTINUE_STREAM,
+                                   ss->dyn_buffer, size, size + 24);
+    }
+
+    return SCE_OK;
+fail:
+    SCEE_LogSrc ();
+    return SCE_ERROR;
 }
 
 int Server_Launch (Server *ss)
@@ -839,6 +967,9 @@ int Server_Launch (Server *ss)
         }
 
         Server_UpdateTerrain (ss);
+
+        if (Server_SendUpdatedRegions (ss) < 0)
+            goto fail;
 
 #if 0
         if (ss->game->playing) {
