@@ -516,7 +516,6 @@ Server_tlp_query_chunk (NetServer *serv, NetClient *client, void *udata,
             NetServer_StreamTCP (serv, client, NETWORK_CONTINUE_STREAM,
                                  comp_data, comp_size, 0);
         } else {
-            SCEE_SendMsg ("checksums match!\n");
             /* no data means "ok you're good." */
             NetServer_SendTCP (serv, client, TLP_QUERY_CHUNK, buffer,
                                PACKET_SIZE);
