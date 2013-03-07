@@ -89,6 +89,20 @@ static void Server_FreeClient (ServerClient *sc)
         }                                                               \
     }
 
+
+static void
+Server_StreamTCPToClients (Server *ss, ServerClient *ex, int id,
+                           const char *data, size_t size, size_t total_size)
+{
+    SCE_SListIterator *it = NULL;
+    SCE_List_ForEach (it, &ss->clients) {
+        ServerClient *c = SCE_List_GetData (it);
+        if (c != ex)
+            NetServer_StreamTCP (&ss->server, c->client, id, data, size,
+                                 total_size);
+    }
+}
+
 /* Server_SendTCPToClients() */
 Server_SENDFUNC (Clients,    TCP, clients)
 /* Server_SendUDPToClients() */
