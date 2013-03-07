@@ -255,7 +255,7 @@ static void
 Server_tlp_get_client_num (NetServer *serv, NetClient *client, void *udata,
                            const char *packet, size_t size)
 {
-    int num;
+    long num;
     unsigned char data[4] = {0};
     Server *ss = NetServer_GetData (serv);
     num = SCE_List_GetLength (&ss->clients);
