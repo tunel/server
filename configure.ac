@@ -121,29 +121,6 @@ else
 fi
 AC_SUBST([DEBUG_CFLAGS])
 
-AC_ARG_ENABLE([paranoia],
-              AC_HELP_STRING([--enable-paranoia],
-                             [enable excessively strict compiler options \
-                              (works only with GCC and compatible) [[default=no]]]),
-              [enable_paranoia="$enableval"],
-              [enable_paranoia="no"])
-AC_MSG_CHECKING([[whether to enable paranoiac compiler options]])
-if test "x$enable_paranoia" = "xyes"; then
-    CFLAGS="$CFLAGS  \
-        -Wall -W -Wchar-subscripts -Wcomment -Wformat=2 -Wimplicit-int \
-        -Werror-implicit-function-declaration -Wmain -Wparentheses -Wsequence-point \
-        -Wreturn-type -Wswitch -Wtrigraphs -Wunused -Wuninitialized -Wunknown-pragmas \
-        -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wbad-function-cast \
-        -Wwrite-strings -Wconversion -Wsign-compare -Waggregate-return \
-        -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations \
-        -Wmissing-noreturn -Wformat -Wmissing-format-attribute \
-        -Wno-deprecated-declarations -Wpacked -Wredundant-decls -Wnested-externs \
-        -Winline -Wlong-long -Wunreachable-code -pedantic"
-  AC_MSG_RESULT([[yes]])
-else
-  AC_MSG_RESULT([[no]])
-fi
-
 # output
 AC_CONFIG_FILES([Makefile
                  tlserver.pc
@@ -155,7 +132,6 @@ AC_OUTPUT
 echo "------------------------------------------"
 echo "Configuration choices:"
 echo "* Debugging enabled               : $enable_debug"
-echo "* Paranoiac compiler options      : $enable_paranoia"
 echo "* Base installation directory     : $prefix"
 echo ""
 echo "Now type 'make' to build $PACKAGE_NAME"
