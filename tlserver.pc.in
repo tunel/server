@@ -9,4 +9,4 @@ Version: @VERSION@
 Requires: sceutils tlcommon
 Libs: -L${libdir} -ltlserver
 Libs.private: -lpthread
-Cflags: -I${includedir} @DEBUG_CFLAGS@
+Cflags: -I${includedir} @TL_DEBUG_CFLAGS@

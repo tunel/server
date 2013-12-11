@@ -98,21 +98,18 @@ AC_CHECK_FUNCS([strchr])
 
 # Tuning
 AC_ARG_ENABLE([debug],
-              AC_HELP_STRING([--enable-debug], [enable debugging [[default=yes]]]),
+              [AS_HELP_STRING([--enable-debug], [enable debugging [[default=yes]]])],
               [enable_debug="$enableval"],
               [enable_debug="yes"])
-AC_MSG_CHECKING([[whether to enable debugging]])
-if test "x$enable_debug" = "xyes"; then
-  AC_DEFINE([TL_DEBUG], [1], [is debugging enabled])
-  # FIXME: please only use TL_DEBUG, not DEBUG
-  DEBUG_CPPFLAGS="-DTL_DEBUG -DDEBUG"
-  CPPFLAGS="$CPPFLAGS $DEBUG_CPPFLAGS"
-  AC_MSG_RESULT([[yes]])
-else
-  DEBUG_CFLAGS=
-  AC_MSG_RESULT([[no]])
-fi
-AC_SUBST([DEBUG_CFLAGS])
+AC_MSG_CHECKING([whether to enable debugging])
+AS_IF([test "x$enable_debug" = "xyes"],
+      [AC_DEFINE([TL_DEBUG], [1], [is debugging enabled])
+       # FIXME: please only use TL_DEBUG, not DEBUG
+       TL_DEBUG_CPPFLAGS="-DTL_DEBUG -DDEBUG"
+       AC_MSG_RESULT([yes])],
+      [TL_DEBUG_CPPFLAGS=
+       AC_MSG_RESULT([no])])
+AC_SUBST([TL_DEBUG_CPPFLAGS])
 
 # output
 AC_CONFIG_FILES([Makefile
