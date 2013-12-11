@@ -7,5 +7,6 @@ libtlserver_la_LIBADD  = $(AM_LIBS) @TL_SERVER_LIBS@
 libtlserver_la_SOURCES = server.c \
                          perlin.c
 
-tl_include_server_HEADERS = server.h \
-                            perlin.h
+tlserver_includedir = $(includedir)/tunel/server
+tlserver_include_HEADERS = server.h \
+                           perlin.h
