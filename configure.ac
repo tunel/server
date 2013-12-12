@@ -10,37 +10,15 @@ AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_AUX_DIR([build/aux])
 AC_CONFIG_MACRO_DIR([build/m4])
 AM_INIT_AUTOMAKE([1.11.1 -Wall foreign subdir-objects])
-AM_PROG_AR
 AC_CONFIG_HEADERS([config.h])
 
 AM_SILENT_RULES([yes])
 
 # Checks for programs.
-LT_PREREQ([2.2.0])
-LT_INIT
 AC_PROG_CC
 AM_PROG_CC_C_O
 
 # basic setup
-
-#
-# revision of the library
-# 
-# CURRENT:REVISION:AGE
-#
-# Please remeber to bump library version before releases
-#   Remeberer:
-# =====================================================================
-# |   If you have...                              |   Bump version to |
-# =====================================================================
-# | Not changed the interface (bug fixes)         | CURRENT:REV+1:AGE |
-# ---------------------------------------------------------------------
-# | Augmented the interface (new functions)       | CURRENT+1:0:AGE+1 |
-# ---------------------------------------------------------------------
-# | Broken old interface (e.g. removed functions) | CURRENT+1:0:0     |
-# ---------------------------------------------------------------------
-TL_SERVER_LTVERSION="0:0:0"
-AC_SUBST([TL_SERVER_LTVERSION])
 
 # Checks for libraries.
 
@@ -113,8 +91,6 @@ AC_SUBST([TL_DEBUG_CPPFLAGS])
 
 # output
 AC_CONFIG_FILES([Makefile
-                 tlserver.pc
-                 src/Makefile
                 ])
 AC_OUTPUT
 
