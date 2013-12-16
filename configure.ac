@@ -9,45 +9,16 @@ AC_INIT([TuneL server],
 AC_CONFIG_SRCDIR([src/main.c])
 AC_CONFIG_AUX_DIR([build/aux])
 AC_CONFIG_MACRO_DIR([build/m4])
-AM_INIT_AUTOMAKE([1.11.1 -Wall -Werror foreign])
-AM_PROG_AR
+AM_INIT_AUTOMAKE([1.11.1 -Wall foreign subdir-objects])
 AC_CONFIG_HEADERS([config.h])
 
 AM_SILENT_RULES([yes])
 
 # Checks for programs.
-LT_PREREQ([2.2.0])
-LT_INIT
 AC_PROG_CC
 AM_PROG_CC_C_O
 
 # basic setup
-
-#
-# revision of the library
-# 
-# CURRENT:REVISION:AGE
-#
-# Please remeber to bump library version before releases
-#   Remeberer:
-# =====================================================================
-# |   If you have...                              |   Bump version to |
-# =====================================================================
-# | Not changed the interface (bug fixes)         | CURRENT:REV+1:AGE |
-# ---------------------------------------------------------------------
-# | Augmented the interface (new functions)       | CURRENT+1:0:AGE+1 |
-# ---------------------------------------------------------------------
-# | Broken old interface (e.g. removed functions) | CURRENT+1:0:0     |
-# ---------------------------------------------------------------------
-TL_SERVER_LTVERSION="0:0:0"
-AC_SUBST([TL_SERVER_LTVERSION])
-
-pkgconfigdir="$libdir/pkgconfig"
-tl_includedir="$includedir/tunel"
-tl_include_serverdir="$tl_includedir/server"
-AC_SUBST(pkgconfigdir)
-AC_SUBST(tl_includedir)
-AC_SUBST(tl_include_serverdir)
 
 # Checks for libraries.
 
@@ -105,57 +76,28 @@ AC_CHECK_FUNCS([strchr])
 
 # Tuning
 AC_ARG_ENABLE([debug],
-              AC_HELP_STRING([--enable-debug], [enable debugging [[default=yes]]]),
+              [AS_HELP_STRING([--enable-debug], [enable debugging [[default=yes]]])],
               [enable_debug="$enableval"],
               [enable_debug="yes"])
-AC_MSG_CHECKING([[whether to enable debugging]])
-if test "x$enable_debug" = "xyes"; then
-  AC_DEFINE([TL_DEBUG], [1], [is debugging enabled])
-  # FIXME: please only use TL_DEBUG, not DEBUG
-  DEBUG_CPPFLAGS="-DTL_DEBUG -DDEBUG"
-  CPPFLAGS="$CPPFLAGS $DEBUG_CPPFLAGS"
-  AC_MSG_RESULT([[yes]])
-else
-  DEBUG_CFLAGS=
-  AC_MSG_RESULT([[no]])
-fi
-AC_SUBST([DEBUG_CFLAGS])
-
-AC_ARG_ENABLE([paranoia],
-              AC_HELP_STRING([--enable-paranoia],
-                             [enable excessively strict compiler options \
-                              (works only with GCC and compatible) [[default=no]]]),
-              [enable_paranoia="$enableval"],
-              [enable_paranoia="no"])
-AC_MSG_CHECKING([[whether to enable paranoiac compiler options]])
-if test "x$enable_paranoia" = "xyes"; then
-    CFLAGS="$CFLAGS  \
-        -Wall -W -Wchar-subscripts -Wcomment -Wformat=2 -Wimplicit-int \
-        -Werror-implicit-function-declaration -Wmain -Wparentheses -Wsequence-point \
-        -Wreturn-type -Wswitch -Wtrigraphs -Wunused -Wuninitialized -Wunknown-pragmas \
-        -Wfloat-equal -Wundef -Wshadow -Wpointer-arith -Wbad-function-cast \
-        -Wwrite-strings -Wconversion -Wsign-compare -Waggregate-return \
-        -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations \
-        -Wmissing-noreturn -Wformat -Wmissing-format-attribute \
-        -Wno-deprecated-declarations -Wpacked -Wredundant-decls -Wnested-externs \
-        -Winline -Wlong-long -Wunreachable-code -pedantic"
-  AC_MSG_RESULT([[yes]])
-else
-  AC_MSG_RESULT([[no]])
-fi
+AC_MSG_CHECKING([whether to enable debugging])
+AS_IF([test "x$enable_debug" = "xyes"],
+      [AC_DEFINE([TL_DEBUG], [1], [is debugging enabled])
+       # FIXME: please only use TL_DEBUG, not DEBUG
+       TL_DEBUG_CPPFLAGS="-DTL_DEBUG -DDEBUG"
+       AC_MSG_RESULT([yes])],
+      [TL_DEBUG_CPPFLAGS=
+       AC_MSG_RESULT([no])])
+AC_SUBST([TL_DEBUG_CPPFLAGS])
 
 # output
 AC_CONFIG_FILES([Makefile
-                 tlserver.pc
-                 src/Makefile
-                ])
+                 src/Makefile])
 AC_OUTPUT
 
 
 echo "------------------------------------------"
 echo "Configuration choices:"
 echo "* Debugging enabled               : $enable_debug"
-echo "* Paranoiac compiler options      : $enable_paranoia"
 echo "* Base installation directory     : $prefix"
 echo ""
 echo "Now type 'make' to build $PACKAGE_NAME"
